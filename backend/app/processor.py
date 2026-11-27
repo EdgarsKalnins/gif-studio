@@ -5,12 +5,14 @@ import io
 import json
 import math
 import os
+import platform
 import shutil
 import subprocess
 import sys
 import tempfile
 import uuid
 import zipfile
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -1686,6 +1688,30 @@ def _build_concat_file(frame_paths: list[Path], durations_ms: list[int], concat_
     concat_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+@lru_cache(maxsize=4)
+def _ffmpeg_encoders(ffmpeg_path: str) -> frozenset[str]:
+    """Return compiled FFmpeg video/audio encoder names for the given binary."""
+    res = subprocess.run([ffmpeg_path, "-hide_banner", "-encoders"], capture_output=True, text=True)
+    names: set[str] = set()
+    for line in res.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[0].startswith(("V", "A")):
+            names.add(parts[1])
+    return frozenset(names)
+
+
+def _pick_av1_flags(ffmpeg_path: str, crf: str, fallback: list[str]) -> list[str]:
+    """Select the fastest available AV1 encoder flags for FFmpeg, or fallback."""
+    encs = _ffmpeg_encoders(ffmpeg_path)
+    if "libsvtav1" in encs:
+        return ["-c:v", "libsvtav1", "-crf", crf, "-preset", "8", "-pix_fmt", "yuv420p"]
+    if "libaom-av1" in encs:
+        return ["-c:v", "libaom-av1", "-crf", crf, "-b:v", "0", "-cpu-used", "6", "-row-mt", "1", "-pix_fmt", "yuv420p"]
+    if "librav1e" in encs:
+        return ["-c:v", "librav1e", "-qp", crf, "-speed", "8", "-pix_fmt", "yuv420p"]
+    return fallback
+
+
 def _encode_mp4(
     frame_paths: list[Path],
     durations_ms: list[int],
@@ -1698,6 +1724,7 @@ def _encode_mp4(
         concat_file = Path(tmp) / "frames.txt"
         _build_concat_file(frame_paths, durations_ms, concat_file)
 
+        ffmpeg = _ffmpeg_bin()
         use_av1 = video_codec == "av1"
         crf = (
             str(video_crf)
@@ -1708,8 +1735,10 @@ def _encode_mp4(
                 else ("18" if quality == "high" else ("23" if quality == "balanced" else "28"))
             )
         )
+        h264_flags = ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", crf]
+        codec_flags = _pick_av1_flags(ffmpeg, crf, h264_flags) if use_av1 else h264_flags
         cmd = [
-            _ffmpeg_bin(),
+            ffmpeg,
             "-y",
             "-f",
             "concat",
@@ -1719,16 +1748,13 @@ def _encode_mp4(
             str(concat_file),
             "-vf",
             "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-            "-c:v",
-            "libsvtav1" if use_av1 else "libx264",
-            "-pix_fmt",
-            "yuv420p",
-            "-crf",
-            crf,
+            *codec_flags,
+            "-movflags",
+            "+faststart",
+            "-fps_mode",
+            "vfr",
+            str(out_path),
         ]
-        if use_av1:
-            cmd.extend(["-preset", "8"])
-        cmd.extend(["-movflags", "+faststart", "-fps_mode", "vfr", str(out_path)])
         subprocess.run(cmd, capture_output=True, check=True)
 
 
@@ -1745,10 +1771,28 @@ def _encode_webm(
         concat_file = Path(tmp) / "frames.txt"
         _build_concat_file(frame_paths, durations_ms, concat_file)
 
+        ffmpeg = _ffmpeg_bin()
         use_av1 = video_codec == "av1"
         crf = str(video_crf) if video_crf is not None else ("24" if quality == "high" else ("32" if quality == "balanced" else "40"))
+        vp9_flags = [
+            "-c:v",
+            "libvpx-vp9",
+            "-b:v",
+            "0",
+            "-crf",
+            crf,
+            "-deadline",
+            "realtime",
+            "-cpu-used",
+            "4",
+            "-pix_fmt",
+            "yuva420p" if transparent else "yuv420p",
+        ]
+        if transparent:
+            vp9_flags.extend(["-auto-alt-ref", "0"])
+        codec_flags = _pick_av1_flags(ffmpeg, crf, vp9_flags) if use_av1 else vp9_flags
         cmd = [
-            _ffmpeg_bin(),
+            ffmpeg,
             "-y",
             "-f",
             "concat",
@@ -1758,27 +1802,11 @@ def _encode_webm(
             str(concat_file),
             "-vf",
             "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+            *codec_flags,
+            "-fps_mode",
+            "vfr",
+            str(out_path),
         ]
-        if use_av1:
-            cmd.extend(["-c:v", "libsvtav1", "-crf", crf, "-preset", "8", "-pix_fmt", "yuv420p"])
-        else:
-            cmd.extend([
-                "-c:v",
-                "libvpx-vp9",
-                "-b:v",
-                "0",
-                "-crf",
-                crf,
-                "-deadline",
-                "realtime",
-                "-cpu-used",
-                "4",
-            ])
-            if transparent:
-                cmd.extend(["-pix_fmt", "yuva420p", "-auto-alt-ref", "0"])
-            else:
-                cmd.extend(["-pix_fmt", "yuv420p"])
-        cmd.extend(["-fps_mode", "vfr", str(out_path)])
         subprocess.run(cmd, capture_output=True, check=True)
 
 
@@ -1788,15 +1816,16 @@ def _encode_mov_alpha(
     out_path: Path,
     quality: str,
     transparent: bool,
-) -> None:
-    """Hardware-encode Apple/Safari HEVC with Alpha (.mov hvc1) via VideoToolbox."""
+) -> str:
+    """Encode QuickTime .mov with alpha via HEVC VideoToolbox on macOS, else ProRes 4444/PNG."""
     with tempfile.TemporaryDirectory() as tmp:
         concat_file = Path(tmp) / "frames.txt"
         _build_concat_file(frame_paths, durations_ms, concat_file)
 
-        alpha_q = "0.85" if quality == "high" else ("0.72" if quality == "balanced" else "0.55")
-        cmd = [
-            _ffmpeg_bin(),
+        ffmpeg = _ffmpeg_bin()
+        encs = _ffmpeg_encoders(ffmpeg)
+        base_in = [
+            ffmpeg,
             "-y",
             "-f",
             "concat",
@@ -1806,17 +1835,34 @@ def _encode_mov_alpha(
             str(concat_file),
             "-vf",
             "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-            "-c:v",
-            "hevc_videotoolbox",
-            "-vtag",
-            "hvc1",
         ]
-        if transparent:
-            cmd.extend(["-alpha_quality", alpha_q])
-        else:
-            cmd.extend(["-pix_fmt", "yuv420p"])
-        cmd.extend(["-movflags", "+faststart", "-fps_mode", "vfr", str(out_path)])
-        subprocess.run(cmd, capture_output=True, check=True)
+        tail = ["-movflags", "+faststart", "-fps_mode", "vfr", str(out_path)]
+
+        # 1. Apple/Safari HEVC with Alpha (macOS hardware VideoToolbox)
+        if platform.system() == "Darwin" and "hevc_videotoolbox" in encs:
+            alpha_q = "0.85" if quality == "high" else ("0.72" if quality == "balanced" else "0.55")
+            hevc_flags = ["-c:v", "hevc_videotoolbox", "-vtag", "hvc1"]
+            hevc_flags.extend(["-alpha_quality", alpha_q] if transparent else ["-pix_fmt", "yuv420p"])
+            try:
+                subprocess.run([*base_in, *hevc_flags, *tail], capture_output=True, check=True)
+                return "hvc1"
+            except subprocess.CalledProcessError:
+                pass
+
+        # 2. Cross-platform Apple ProRes 4444 alpha (or ProRes 422 when opaque)
+        if "prores_ks" in encs:
+            prores_flags = (
+                ["-c:v", "prores_ks", "-profile:v", "4", "-vendor", "apl0", "-pix_fmt", "yuva444p10le"]
+                if transparent
+                else ["-c:v", "prores_ks", "-profile:v", "2", "-vendor", "apl0", "-pix_fmt", "yuv422p10le"]
+            )
+            subprocess.run([*base_in, *prores_flags, *tail], capture_output=True, check=True)
+            return "ap4h" if transparent else "apcn"
+
+        # 3. Universal lossless RGBA-in-MOV fallback
+        png_flags = ["-c:v", "png", "-pix_fmt", "rgba" if transparent else "rgb24"]
+        subprocess.run([*base_in, *png_flags, *tail], capture_output=True, check=True)
+        return "png"
 
 
 def _encode_spritesheet(
@@ -2083,7 +2129,7 @@ def _encode_bundle_zip(
 
     if transparent:
         mov_p = tmp_dir / "animation.mov"
-        _encode_mov_alpha(
+        mov_codec = _encode_mov_alpha(
             frame_paths,
             durations_ms,
             mov_p,
@@ -2091,9 +2137,10 @@ def _encode_bundle_zip(
             transparent=True,
         )
         bundled_entries.append(("animation.mov", mov_p))
+        mov_type = 'video/quicktime; codecs="hvc1"' if mov_codec == "hvc1" else "video/quicktime"
         video_markup = (
             f'<video width="{width}" height="{height}" autoplay loop muted playsinline>\n'
-            f'  <source src="./animation.mov" type=\'video/quicktime; codecs="hvc1"\' />\n'
+            f"  <source src=\"./animation.mov\" type='{mov_type}' />\n"
             f'  <source src="./animation.webm" type="video/webm" />\n'
             f"</video>"
         )
