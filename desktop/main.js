@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const { spawn, execSync } = require("node:child_process");
 const fs = require("node:fs");
 const http = require("node:http");
@@ -17,6 +17,69 @@ if (!isSmokeTest && !app.requestSingleInstanceLock()) {
 let mainWindow = null;
 let backendProc = null;
 let activePort = null;
+let forceQuit = false;
+let closeConfirmReady = false;
+let awaitingCloseConfirm = false;
+let closeAckTimer = null;
+
+function clearCloseAckTimer() {
+  if (closeAckTimer) {
+    clearTimeout(closeAckTimer);
+    closeAckTimer = null;
+  }
+}
+
+function finalizeQuit() {
+  clearCloseAckTimer();
+  awaitingCloseConfirm = false;
+  forceQuit = true;
+  stopBackend();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.close();
+  } else {
+    app.quit();
+  }
+}
+
+function promptNativeCloseFallback() {
+  clearCloseAckTimer();
+  if (forceQuit || !mainWindow || mainWindow.isDestroyed()) {
+    finalizeQuit();
+    return;
+  }
+  const choice = dialog.showMessageBoxSync(mainWindow, {
+    type: "question",
+    buttons: ["Keep Editing", "Close App"],
+    defaultId: 0,
+    cancelId: 0,
+    title: "Close GIF Studio?",
+    message: "Close GIF Studio?",
+    detail: "Do you want to close GIF Studio and stop the local engine?",
+  });
+  if (choice === 1) {
+    finalizeQuit();
+  } else {
+    awaitingCloseConfirm = false;
+  }
+}
+
+function requestInAppCloseConfirmation(event) {
+  if (forceQuit || isSmokeTest) return false;
+  if (!closeConfirmReady || !mainWindow || mainWindow.isDestroyed()) return false;
+  event.preventDefault();
+
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+
+  if (!awaitingCloseConfirm) {
+    awaitingCloseConfirm = true;
+    clearCloseAckTimer();
+    closeAckTimer = setTimeout(promptNativeCloseFallback, 1000);
+    mainWindow.webContents.send("studio:request-close-confirm");
+  }
+  return true;
+}
 
 function findFreePort() {
   return new Promise((resolve, reject) => {
@@ -200,10 +263,46 @@ function createWindow() {
     return { action: "allow" };
   });
 
+  win.webContents.on("did-start-loading", () => {
+    closeConfirmReady = false;
+    awaitingCloseConfirm = false;
+    clearCloseAckTimer();
+  });
+
+  win.on("close", (e) => {
+    requestInAppCloseConfirmation(e);
+  });
+
   win.loadFile(path.join(__dirname, "splash.html"));
   mainWindow = win;
   return win;
 }
+
+ipcMain.on("studio:close-confirm-ready", (_event, ready) => {
+  closeConfirmReady = Boolean(ready);
+  if (!closeConfirmReady) {
+    awaitingCloseConfirm = false;
+    clearCloseAckTimer();
+  }
+});
+
+ipcMain.on("studio:close-confirm-ack", () => {
+  clearCloseAckTimer();
+});
+
+ipcMain.on("studio:request-app-close", () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.close();
+  }
+});
+
+ipcMain.on("studio:close-confirm-response", (_event, confirmed) => {
+  clearCloseAckTimer();
+  awaitingCloseConfirm = false;
+  if (confirmed) {
+    finalizeQuit();
+  }
+});
 
 app.on("second-instance", () => {
   if (mainWindow) {
@@ -212,7 +311,8 @@ app.on("second-instance", () => {
   }
 });
 
-app.on("before-quit", () => {
+app.on("before-quit", (e) => {
+  if (requestInAppCloseConfirmation(e)) return;
   stopBackend();
 });
 

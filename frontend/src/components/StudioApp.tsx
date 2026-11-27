@@ -316,6 +316,7 @@ export function StudioApp() {
   const [newRecipeName, setNewRecipeName] = useState("");
   const [activeTextLayerIdx, setActiveTextLayerIdx] = useState(-1);
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteAction | null>(null);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [guideModalSection, setGuideModalSection] =
     useState<GuideModalSection | null>(null);
   const [hideGuideOnStartup, setHideGuideOnStartup] = useState(false);
@@ -641,20 +642,75 @@ export function StudioApp() {
   }, []);
 
   // Auto-save draft to localStorage after hydration
+  const flushDraftToStorage = useCallback(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(
+        DRAFT_STORAGE_KEY,
+        JSON.stringify({ mediaBin, project, exportConfig })
+      );
+    } catch {
+      // Ignore quota errors
+    }
+  }, [hydrated, mediaBin, project, exportConfig]);
+
   useEffect(() => {
     if (!hydrated) return;
-    const timer = setTimeout(() => {
-      try {
-        localStorage.setItem(
-          DRAFT_STORAGE_KEY,
-          JSON.stringify({ mediaBin, project, exportConfig })
-        );
-      } catch {
-        // Ignore quota errors
-      }
-    }, 250);
+    const timer = setTimeout(flushDraftToStorage, 250);
     return () => clearTimeout(timer);
-  }, [hydrated, mediaBin, project, exportConfig]);
+  }, [hydrated, flushDraftToStorage]);
+
+  const flushDraftRef = useRef(flushDraftToStorage);
+  useEffect(() => {
+    flushDraftRef.current = flushDraftToStorage;
+  }, [flushDraftToStorage]);
+
+  // Desktop close confirmation IPC hook (window close button, Cmd+W, Cmd+Q, Dock Quit)
+  useEffect(() => {
+    const desktop = typeof window !== "undefined" ? window.gifStudioDesktop : undefined;
+    if (!desktop?.isDesktopApp) return;
+
+    desktop.setCloseConfirmReady?.(true);
+    const unsubscribe = desktop.onCloseRequest?.(() => {
+      desktop.ackCloseRequest?.();
+      flushDraftRef.current();
+      setCloseConfirmOpen(true);
+    });
+
+    return () => {
+      unsubscribe?.();
+      desktop.setCloseConfirmReady?.(false);
+    };
+  }, []);
+
+  // Browser tab fallback guard when not inside the Electron desktop shell
+  const hasActiveBackgroundJob =
+    isUploading || isExporting || isLoadingSamples || isReplacingFrameUpload;
+
+  useEffect(() => {
+    if (typeof window === "undefined" || window.gifStudioDesktop?.isDesktopApp) return;
+    const shouldWarnWebClose = project.frames.length > 0 || hasActiveBackgroundJob;
+    if (!shouldWarnWebClose) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      flushDraftRef.current();
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [project.frames.length, hasActiveBackgroundJob]);
+
+  const handleConfirmCloseApp = useCallback(() => {
+    flushDraftRef.current();
+    setCloseConfirmOpen(false);
+    window.gifStudioDesktop?.respondCloseRequest?.(true);
+  }, []);
+
+  const handleCancelCloseApp = useCallback(() => {
+    setCloseConfirmOpen(false);
+    window.gifStudioDesktop?.respondCloseRequest?.(false);
+  }, []);
 
   const {
     frames,
@@ -5022,6 +5078,34 @@ export function StudioApp() {
         }
         onConfirm={confirmPendingDelete}
         onCancel={() => setPendingDelete(null)}
+      />
+
+      {/* Desktop App Close Confirmation Modal */}
+      <ConfirmModal
+        isOpen={closeConfirmOpen}
+        zIndexClass="z-[60]"
+        tone={hasActiveBackgroundJob ? "danger" : "warning"}
+        confirmOnEnter={false}
+        title="Close GIF Studio?"
+        description={
+          hasActiveBackgroundJob
+            ? "An upload, sample load, or render export is currently running. Closing GIF Studio now will cancel the active task."
+            : frames.length > 0
+            ? `Are you sure you want to close GIF Studio? Your ${frames.length} timeline ${
+                frames.length === 1 ? "frame" : "frames"
+              } and ${mediaBin.length} Media Bin ${
+                mediaBin.length === 1 ? "item" : "items"
+              } are saved locally for your next session.`
+            : mediaBin.length > 0
+            ? `Are you sure you want to close GIF Studio? Your ${mediaBin.length} Media Bin ${
+                mediaBin.length === 1 ? "file" : "files"
+              } will stay in local storage.`
+            : "Are you sure you want to close GIF Studio and stop the local engine?"
+        }
+        cancelLabel={hasActiveBackgroundJob ? "Keep Working" : "Keep Editing"}
+        confirmLabel={hasActiveBackgroundJob ? "Close Anyway" : "Close App"}
+        onConfirm={handleConfirmCloseApp}
+        onCancel={handleCancelCloseApp}
       />
       </div>
     </StudioIconProvider>

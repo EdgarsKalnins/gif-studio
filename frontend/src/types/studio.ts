@@ -384,3 +384,19 @@ export const TRANSITION_OPTIONS: { id: TransitionType; label: string }[] = [
   { id: "slide_up", label: "Slide Up" },
   { id: "zoom_in", label: "Zoom Dissolve" },
 ];
+
+export interface GifStudioDesktopBridge {
+  platform?: string;
+  arch?: string;
+  isDesktopApp?: boolean;
+  setCloseConfirmReady?: (ready: boolean) => void;
+  onCloseRequest?: (callback: () => void) => () => void;
+  ackCloseRequest?: () => void;
+  respondCloseRequest?: (confirmed: boolean) => void;
+}
+
+declare global {
+  interface Window {
+    gifStudioDesktop?: GifStudioDesktopBridge;
+  }
+}
