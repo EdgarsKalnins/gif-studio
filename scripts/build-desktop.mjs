@@ -265,14 +265,14 @@ function main() {
   fs.rmSync(distDir, { recursive: true, force: true });
 
   if (opts.dirOnly) {
-    run("npx", ["electron-builder", "--dir"], DESKTOP_DIR);
+    run("npx", ["electron-builder", "--dir", "--publish", "never"], DESKTOP_DIR);
   } else if (target === "mac") {
     const archFlag = process.arch === "arm64" ? "--arm64" : "--x64";
-    run("npx", ["electron-builder", "--mac", archFlag], DESKTOP_DIR);
+    run("npx", ["electron-builder", "--mac", archFlag, "--publish", "never"], DESKTOP_DIR);
   } else if (target === "win") {
-    run("npx", ["electron-builder", "--win", "--x64"], DESKTOP_DIR);
+    run("npx", ["electron-builder", "--win", "--x64", "--publish", "never"], DESKTOP_DIR);
   } else {
-    run("npx", ["electron-builder", "--linux"], DESKTOP_DIR);
+    run("npx", ["electron-builder", "--linux", "--publish", "never"], DESKTOP_DIR);
   }
 
   console.log(`\nStandalone GIF Studio desktop artifacts built in: ${distDir}`);
