@@ -8,6 +8,14 @@
     "name": "Edgars Kalniņš",
     "url": "https://github.com/EdgarsKalnins"
   },
+  "homepage": "https://github.com/EdgarsKalnins/gif-studio#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EdgarsKalnins/gif-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/EdgarsKalnins/gif-studio/issues"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
