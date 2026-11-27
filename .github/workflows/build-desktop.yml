@@ -1,0 +1,113 @@
+name: Build Standalone Desktop Apps (macOS, Windows, Linux)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "OS targets to build (all, mac, win, linux)"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - mac
+          - win
+          - linux
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build GIF Studio (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: mac
+            label: macOS Apple Silicon (.dmg/.zip)
+            os: macos-14
+            target: mac
+            arch: arm64
+          - id: mac
+            label: macOS Intel (.dmg/.zip)
+            os: macos-13
+            target: mac
+            arch: x64
+          - id: win
+            label: Windows x64 (.exe NSIS & Portable)
+            os: windows-latest
+            target: win
+            arch: x64
+          - id: linux
+            label: Linux x64 (.AppImage & .deb)
+            os: ubuntu-latest
+            target: linux
+            arch: x64
+    if: ${{ inputs.target == '' || inputs.target == 'all' || inputs.target == matrix.id }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install system FFmpeg for pytest verification
+        shell: bash
+        run: |
+          if [ "${{ matrix.id }}" = "linux" ]; then
+            sudo apt-get update && sudo apt-get install -y ffmpeg librsvg2-bin
+          elif [ "${{ matrix.id }}" = "mac" ]; then
+            brew install ffmpeg librsvg
+          fi
+
+      - name: Install Windows FFmpeg for pytest verification
+        if: matrix.id == 'win'
+        uses: FedericoCarboni/setup-ffmpeg@v3
+
+      - name: Create Python virtual environment & install dependencies
+        shell: bash
+        run: |
+          cd backend
+          python -m venv .venv
+          if [ "${{ matrix.id }}" = "win" ]; then
+            .venv/Scripts/python -m pip install --upgrade pip
+            .venv/Scripts/python -m pip install -e ".[dev,desktop]"
+          else
+            .venv/bin/python -m pip install --upgrade pip
+            .venv/bin/python -m pip install -e ".[dev,desktop]"
+          fi
+
+      - name: Install Frontend & Desktop npm dependencies
+        shell: bash
+        run: |
+          cd frontend && npm ci
+          cd ../desktop && npm ci
+
+      - name: Run checks and build standalone desktop installers
+        shell: bash
+        run: node scripts/build-desktop.mjs --target ${{ matrix.target }} --skip-install
+
+      - name: Upload built installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: gif-studio-${{ matrix.target }}-${{ matrix.arch }}
+          path: |
+            desktop/dist/*.dmg
+            desktop/dist/*.zip
+            desktop/dist/*.exe
+            desktop/dist/*.AppImage
+            desktop/dist/*.deb
+          if-no-files-found: error

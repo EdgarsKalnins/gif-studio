@@ -1,0 +1,290 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Core Surfaces (Daylight Paper) */
+  --background: #f4f3ef;
+  --foreground: #141416;
+  --surface-1: #fbfaf8;
+  --surface-2: #eceae4;
+  --stage-bg: #e7e5df;
+  --stage-dot: #c9c6bd;
+  --checker-a: #efede8;
+  --checker-b: #e2dfd7;
+  --hairline: rgba(20, 20, 22, 0.09);
+  --scroll-thumb: rgba(20, 20, 22, 0.18);
+  --scroll-thumb-hover: rgba(20, 20, 22, 0.32);
+
+  /* Accent Tokens (Default: Warm Film Amber) */
+  --studio-accent: #b45309;
+  --studio-accent-hover: #92400e;
+  --studio-accent-soft: rgba(180, 83, 9, 0.11);
+  --studio-accent-text: #92400e;
+  --studio-accent-ring: rgba(180, 83, 9, 0.42);
+  --studio-accent-contrast: #ffffff;
+
+  /* Customizable Typography Tokens */
+  --studio-font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --studio-font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --studio-font-display: var(--studio-font-sans);
+
+  /* Customizable Geometry Tokens (Default: Balanced) */
+  --studio-radius-panel: 1rem;
+  --studio-radius-control: 0.75rem;
+  --studio-radius-pill: 0.5rem;
+
+  /* Customizable Icon Tokens (Default: Medium) */
+  --studio-icon-xs: 12px;
+  --studio-icon-sm: 14px;
+  --studio-icon-md: 16px;
+  --studio-icon-lg: 24px;
+
+  /* Range Sliders */
+  --range-track: rgba(20, 20, 22, 0.14);
+  --range-thumb: #141416;
+  --range-thumb-hover: var(--studio-accent);
+  --range-thumb-ring: #fbfaf8;
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #f4f4f6;
+  --surface-1: #111114;
+  --surface-2: #18181d;
+  --stage-bg: #070709;
+  --stage-dot: #23232b;
+  --checker-a: #1a1a21;
+  --checker-b: #111116;
+  --hairline: rgba(255, 255, 255, 0.08);
+  --scroll-thumb: rgba(255, 255, 255, 0.16);
+  --scroll-thumb-hover: rgba(255, 255, 255, 0.28);
+
+  --studio-accent: #d97706;
+  --studio-accent-hover: #f59e0b;
+  --studio-accent-soft: rgba(245, 158, 11, 0.14);
+  --studio-accent-text: #fbbf24;
+  --studio-accent-ring: rgba(245, 158, 11, 0.45);
+  --studio-accent-contrast: #141416;
+
+  --range-track: rgba(255, 255, 255, 0.14);
+  --range-thumb: #f4f4f6;
+  --range-thumb-hover: var(--studio-accent);
+  --range-thumb-ring: #111114;
+}
+
+/* Accent Theme Presets */
+[data-accent="vermilion"] {
+  --studio-accent: #c2410c;
+  --studio-accent-hover: #9a3412;
+  --studio-accent-soft: rgba(194, 65, 12, 0.11);
+  --studio-accent-text: #9a3412;
+  --studio-accent-ring: rgba(194, 65, 12, 0.42);
+}
+.dark[data-accent="vermilion"] {
+  --studio-accent: #ea580c;
+  --studio-accent-hover: #fb923c;
+  --studio-accent-soft: rgba(251, 146, 60, 0.15);
+  --studio-accent-text: #fdba74;
+  --studio-accent-ring: rgba(251, 146, 60, 0.45);
+}
+
+[data-accent="teal"] {
+  --studio-accent: #0f766e;
+  --studio-accent-hover: #115e59;
+  --studio-accent-soft: rgba(15, 118, 110, 0.11);
+  --studio-accent-text: #115e59;
+  --studio-accent-ring: rgba(15, 118, 110, 0.42);
+}
+.dark[data-accent="teal"] {
+  --studio-accent: #14b8a6;
+  --studio-accent-hover: #2dd4bf;
+  --studio-accent-soft: rgba(45, 212, 191, 0.14);
+  --studio-accent-text: #5eead4;
+  --studio-accent-ring: rgba(45, 212, 191, 0.45);
+}
+
+[data-accent="monochrome"] {
+  --studio-accent: #18181b;
+  --studio-accent-hover: #27272a;
+  --studio-accent-soft: rgba(24, 24, 27, 0.08);
+  --studio-accent-text: #18181b;
+  --studio-accent-ring: rgba(24, 24, 27, 0.35);
+}
+.dark[data-accent="monochrome"] {
+  --studio-accent: #e4e4e7;
+  --studio-accent-hover: #ffffff;
+  --studio-accent-soft: rgba(244, 244, 245, 0.12);
+  --studio-accent-text: #f4f4f5;
+  --studio-accent-ring: rgba(244, 244, 245, 0.35);
+}
+
+/* Radius Density Modes (wired to both semantic studio tokens & Tailwind v4 radius vars) */
+[data-radius="sharp"] {
+  --studio-radius-panel: 0.375rem;
+  --studio-radius-control: 0.25rem;
+  --studio-radius-pill: 0.2rem;
+  --radius-sm: 0.125rem;
+  --radius-md: 0.2rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.5rem;
+}
+[data-radius="soft"] {
+  --studio-radius-panel: 1.35rem;
+  --studio-radius-control: 1rem;
+  --studio-radius-pill: 0.75rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
+}
+
+/* Font Modes */
+[data-font="editorial"] {
+  --studio-font-display: Georgia, "Times New Roman", serif;
+}
+[data-font="editorial"] h1,
+[data-font="editorial"] h2,
+[data-font="editorial"] h3 {
+  font-family: var(--studio-font-display);
+}
+
+/* Icon Size Modes */
+[data-icon-size="compact"] {
+  --studio-icon-xs: 11px;
+  --studio-icon-sm: 13px;
+  --studio-icon-md: 15px;
+  --studio-icon-lg: 20px;
+}
+[data-icon-size="spacious"] {
+  --studio-icon-xs: 13px;
+  --studio-icon-sm: 16px;
+  --studio-icon-md: 18px;
+  --studio-icon-lg: 28px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--studio-font-sans);
+  overflow-x: hidden;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href],
+select:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
+/* Reusable Semantic CSS Utilities */
+.studio-panel-radius {
+  border-radius: var(--studio-radius-panel);
+}
+.studio-control-radius {
+  border-radius: var(--studio-radius-control);
+}
+.studio-pill-radius {
+  border-radius: var(--studio-radius-pill);
+}
+.studio-display-font {
+  font-family: var(--studio-font-display);
+}
+.studio-accent-text {
+  color: var(--studio-accent-text);
+}
+.studio-accent-bg {
+  background-color: var(--studio-accent);
+  color: var(--studio-accent-contrast);
+}
+.studio-accent-soft {
+  background-color: var(--studio-accent-soft);
+}
+.studio-accent-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--studio-accent-ring);
+}
+
+.studio-stage-surface {
+  background-color: var(--stage-bg);
+  background-image: radial-gradient(var(--stage-dot) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.studio-checkerboard {
+  background-image: repeating-conic-gradient(
+    var(--checker-a) 0% 25%,
+    var(--checker-b) 0% 50%
+  );
+  background-size: 16px 16px;
+}
+
+/* Tactile Architectural Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+/* Studio Range Sliders */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 2px;
+  border-radius: 9999px;
+  background: var(--range-track);
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: var(--range-thumb);
+  border: 2px solid var(--range-thumb-ring);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.18);
+  background: var(--range-thumb-hover);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: var(--range-thumb);
+  border: 2px solid var(--range-thumb-ring);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}

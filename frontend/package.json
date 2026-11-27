@@ -1,0 +1,66 @@
+{
+  "name": "gif-studio",
+  "version": "1.0.0",
+  "description": "Local-first web & standalone macOS/Windows/Linux desktop studio for converting videos, Live Photo MOVs, HEICs, SVGs, and Lottie into GIF, WebP, AVIF, APNG, WebM, MOV alpha, Sprite Sheets, dotLottie & SVG.",
+  "license": "MIT",
+  "author": {
+    "name": "Edgars Kalniņš",
+    "url": "https://github.com/EdgarsKalnins"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EdgarsKalnins/gif-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/EdgarsKalnins/gif-studio/issues"
+  },
+  "homepage": "https://github.com/EdgarsKalnins/gif-studio#readme",
+  "keywords": [
+    "gif maker",
+    "gif studio",
+    "avif animation",
+    "apng maker",
+    "webm vp9 alpha",
+    "sprite sheet generator",
+    "lottie json converter",
+    "animated svg",
+    "heic to gif",
+    "iphone live photo to gif",
+    "video to gif",
+    "electron desktop app",
+    "cross platform",
+    "animated webp converter",
+    "ken burns gif",
+    "transparent sticker gif",
+    "momentbox",
+    "riga",
+    "latvia",
+    "ffmpeg",
+    "fastapi",
+    "nextjs"
+  ],
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "lottie-web": "^5.13.0",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5"
+  }
+}

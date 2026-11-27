@@ -1,0 +1,89 @@
+{
+  "name": "gif-studio-desktop",
+  "version": "1.0.0",
+  "productName": "GIF Studio",
+  "description": "Standalone offline-first desktop studio for turning HEICs, Live Photos, videos, SVGs, and dotLottie into GIF, WebP, AVIF, APNG, WebM, MOV alpha, Sprite Sheets, Lottie, and Animated SVG.",
+  "license": "MIT",
+  "author": {
+    "name": "Edgars Kalniņš",
+    "url": "https://github.com/EdgarsKalnins"
+  },
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8",
+    "ffmpeg-static": "^5.2.0",
+    "ffprobe-static": "^3.1.0"
+  },
+  "build": {
+    "appId": "lv.momentbox.gifstudio",
+    "productName": "GIF Studio",
+    "copyright": "Copyright © 2026 Edgars Kalniņš (MIT License)",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "staged/backend",
+        "to": "backend"
+      },
+      {
+        "from": "staged/frontend",
+        "to": "frontend"
+      },
+      {
+        "from": "staged/samples",
+        "to": "samples"
+      },
+      {
+        "from": "staged/bin",
+        "to": "bin"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.photography",
+      "icon": "build/icon.icns",
+      "identity": null,
+      "hardenedRuntime": false,
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "AudioVideo;Graphics;",
+      "maintainer": "Edgars Kalniņš <https://github.com/EdgarsKalnins>",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  }
+}
