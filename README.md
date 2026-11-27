@@ -202,7 +202,7 @@ flowchart TD
 - [`scripts/build-desktop.mjs`](scripts/build-desktop.mjs): Unified packager (`--target current|mac|win|linux|all`, `--dir`, `--ci`) automating PyInstaller, Next.js static export, icon generation, FFmpeg staging, and `electron-builder`.
 - [`scripts/generate_desktop_icons.py`](scripts/generate_desktop_icons.py): Generates cross-platform `.png`, `.ico`, and `.icns` app icons via Pillow.
 - [`.agents/skills/build-app/SKILL.md`](.agents/skills/build-app/SKILL.md): Workspace agentic skill (`/build-app`) for building standalone desktop installers.
-- [`.github/workflows/build-desktop.yml`](.github/workflows/build-desktop.yml): Cross-OS GitHub Actions build matrix (`macos-14` arm64, `macos-13` x64, `windows-latest`, `ubuntu-latest`).
+- [`.github/workflows/build-desktop.yml`](.github/workflows/build-desktop.yml): Cross-OS GitHub Actions build matrix (`macos-15` arm64, `macos-15-intel` x64, `windows-latest`, `ubuntu-latest`).
 
 ---
 

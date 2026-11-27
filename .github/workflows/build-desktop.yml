@@ -35,7 +35,7 @@ jobs:
         run: |
           node -e '
             const all = [
-              { id: "mac", label: "macOS Apple Silicon (.dmg/.zip)", os: "macos-14", target: "mac", arch: "arm64" },
+              { id: "mac", label: "macOS Apple Silicon (.dmg/.zip)", os: "macos-15", target: "mac", arch: "arm64" },
               { id: "mac", label: "macOS Intel (.dmg/.zip)", os: "macos-15-intel", target: "mac", arch: "x64" },
               { id: "win", label: "Windows x64 (.exe NSIS & Portable)", os: "windows-latest", target: "win", arch: "x64" },
               { id: "linux", label: "Linux x64 (.AppImage & .deb)", os: "ubuntu-latest", target: "linux", arch: "x64" }
