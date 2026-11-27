@@ -21,33 +21,37 @@ permissions:
   contents: write
 
 jobs:
+  prepare:
+    name: Resolve Build Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Select OS targets
+        id: set-matrix
+        shell: bash
+        env:
+          TARGET_INPUT: ${{ inputs.target || 'all' }}
+        run: |
+          node -e '
+            const all = [
+              { id: "mac", label: "macOS Apple Silicon (.dmg/.zip)", os: "macos-14", target: "mac", arch: "arm64" },
+              { id: "mac", label: "macOS Intel (.dmg/.zip)", os: "macos-15-intel", target: "mac", arch: "x64" },
+              { id: "win", label: "Windows x64 (.exe NSIS & Portable)", os: "windows-latest", target: "win", arch: "x64" },
+              { id: "linux", label: "Linux x64 (.AppImage & .deb)", os: "ubuntu-latest", target: "linux", arch: "x64" }
+            ];
+            const target = (process.env.TARGET_INPUT || "all").trim();
+            const selected = target === "all" ? all : all.filter((item) => item.id === target);
+            const fs = require("fs");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify({ include: selected })}\n`);
+          '
+
   build:
+    needs: prepare
     name: Build GIF Studio (${{ matrix.label }})
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - id: mac
-            label: macOS Apple Silicon (.dmg/.zip)
-            os: macos-14
-            target: mac
-            arch: arm64
-          - id: mac
-            label: macOS Intel (.dmg/.zip)
-            os: macos-13
-            target: mac
-            arch: x64
-          - id: win
-            label: Windows x64 (.exe NSIS & Portable)
-            os: windows-latest
-            target: win
-            arch: x64
-          - id: linux
-            label: Linux x64 (.AppImage & .deb)
-            os: ubuntu-latest
-            target: linux
-            arch: x64
-    if: ${{ inputs.target == '' || inputs.target == 'all' || inputs.target == matrix.id }}
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
 
     steps:
